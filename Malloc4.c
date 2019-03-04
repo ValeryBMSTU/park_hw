@@ -1,3 +1,8 @@
+// Шульман Виталий АПО-13
+//
+//
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
