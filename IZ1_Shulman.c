@@ -22,28 +22,22 @@ int resize(char*** strings, const char* const buffer, const int count);
 
 int string_lwr(char *new_string, const char* const source_string);
 
+void memory_release(const int result_count, char** const result_strings, const int count, char** const strings);
+
+int input(char*** strings, int* count);
+
 int main() {
-	int count = 0, k = 0;
-	int error_flag = FALSE;
+	int count = 0;
+	int result_count = 0;
 	char** strings = NULL;
 	char** result_strings = NULL;
 
-	for (char buffer[BUF_SIZE] = { "\0" }; error_flag != 1; count++) {
-		if (fgets(buffer, BUF_SIZE, stdin) == NULL)	{
-			break;
-		}
-		if (buffer[0] == '\n') {
-			break;
-		}
-		error_flag = resize(&strings, buffer, count);
-	}
-	if ((count < 1) || error_flag) {
+	if (input(&strings, &count)) {
 		printf("[error]");
 	}
 	else {
-		k = reg_down(strings, count, &result_strings);
-		if (count == k)	{
-			for (int i = 0; i < k; i++) {
+		if (count == (result_count = reg_down(strings, count, &result_strings)))	{
+			for (int i = 0; i < result_count; i++) {
 				printf("%s", result_strings[i]);
 			}
 		}
@@ -51,46 +45,39 @@ int main() {
 			printf("[error]");
 		}
 	}
-
-	for (int i = 0; i < k; i++)	{
-		free(result_strings[i]);
-	}
-	free(result_strings);
-	for (int i = 0; i < count; i++) {
-		free(strings[i]);
-	}
-	free(strings);
-
+	memory_release(result_count, result_strings, count, strings);
 	return 0;
 }
 
 int reg_down(char** const source_strings, const int count, char*** new_strings) {
-	if (new_strings == NULL)	{
-		return -1;
+	int proc_strings_count = 0;
+
+	if (new_strings == NULL || source_strings == NULL)	{
+		return proc_strings_count;
 	}
 
-	int i = 0; //счетчик обработанных строк
 	(*new_strings) = (char**)malloc(sizeof(char*) * (count));
 	if ((*new_strings) == NULL) {
-		return -1;
+		return proc_strings_count;
 	}
 
-	for (; i < count; i++) {
-		(*new_strings)[i] = (char*)malloc(sizeof(char) * (strlen(source_strings[i]) + 1));
-		if ((*new_strings)[i] == NULL) {
+	for (; proc_strings_count < count; proc_strings_count++) {
+		(*new_strings)[proc_strings_count] = (char*)malloc(sizeof(char) * (strlen(source_strings[proc_strings_count]) + 1));
+		if ((*new_strings)[proc_strings_count] == NULL) {
 			break;
 		}
 
-		if (string_lwr((*new_strings)[i], source_strings[i]) != strlen(source_strings[i]))	{
+		if (string_lwr((*new_strings)[proc_strings_count], source_strings[proc_strings_count]) != strlen(source_strings[proc_strings_count]))	{
 			break;
 		}
 	}
-	return i;
+	return proc_strings_count;
 }
 
 int resize(char*** strings, const char* const buffer, const int count) {
 
 	static int curent_size = STRINGS_SIZE;
+	int error_flag = FALSE;
 
 	if (count == curent_size || count == 0)
 	{
@@ -98,13 +85,15 @@ int resize(char*** strings, const char* const buffer, const int count) {
 		char** p = (*strings);
 		(*strings) = (char**)realloc(p, sizeof(char*) * (curent_size));
 		if ((*strings) == NULL) {
-			return -1;
+			error_flag = TRUE;
+			return error_flag;
 		}
 	}
 
 	(*strings)[count] = (char*)malloc(sizeof(char) * (strlen(buffer) + 1));
 	if ((*strings)[count] == NULL) {
-		return -1;
+		error_flag = TRUE;
+		return error_flag;
 	}
 
 	for (int j = 0; buffer[j] != '\0'; j++)	{
@@ -126,4 +115,33 @@ int string_lwr(char *new_string, const char* const source_string)
 		}
 	new_string[strlen(source_string)] = '\0';
 	return j;
+}
+
+void memory_release(const int result_count, char** const result_strings, const int count, char** const strings)
+{
+	for (int i = 0; i < result_count; i++)	{
+		free(result_strings[i]);
+	}
+	free(result_strings);
+	for (int i = 0; i < count; i++)	{
+		free(strings[i]);
+	}
+	free(strings);
+	return;
+}
+
+int input(char*** strings, int* count)
+{
+	int error_flag = FALSE;
+	for (char buffer[BUF_SIZE] = { "\0" }; error_flag != 1; (*count)++) {
+		if (fgets(buffer, BUF_SIZE, stdin) == NULL) {
+			break;
+		}
+		if (buffer[0] == '\n') {
+			break;
+		}
+		error_flag = resize(&(*strings), buffer, (*count));
+	}
+
+	return error_flag;
 }
