@@ -18,25 +18,27 @@
 
 int reg_down(char** const source_strings, const int count, char*** new_strings);
 
-int resize(char*** strings, const char* const buffer, const int count);
+int resize(char*** strings, const char* const buffer, const int count, int* curent_count);
 
 int string_lwr(char *new_string, const char* const source_string);
 
 void memory_release(const int result_count, char** const result_strings, const int count, char** const strings);
 
-int input(char*** strings, int* count);
+int input(char*** strings, int* count, FILE* format);
 
 int main() {
 	int count = 0;
 	int result_count = 0;
 	char** strings = NULL;
 	char** result_strings = NULL;
+	FILE* format = stdin;
 
-	if (input(&strings, &count)) {
+	if (!input(&strings, &count, format)) {
 		printf("[error]");
 	}
 	else {
-		if (count == (result_count = reg_down(strings, count, &result_strings)))	{
+		result_count = reg_down(strings, count, &result_strings);
+		if (count == result_count) {
 			for (int i = 0; i < result_count; i++) {
 				printf("%s", result_strings[i]);
 			}
@@ -52,7 +54,7 @@ int main() {
 int reg_down(char** const source_strings, const int count, char*** new_strings) {
 	int proc_strings_count = 0;
 
-	if (new_strings == NULL || source_strings == NULL)	{
+	if (new_strings == NULL || source_strings == NULL) {
 		return proc_strings_count;
 	}
 
@@ -67,81 +69,97 @@ int reg_down(char** const source_strings, const int count, char*** new_strings) 
 			break;
 		}
 
-		if (string_lwr((*new_strings)[proc_strings_count], source_strings[proc_strings_count]) != strlen(source_strings[proc_strings_count]))	{
+		if (!string_lwr((*new_strings)[proc_strings_count], source_strings[proc_strings_count])) {
 			break;
 		}
 	}
 	return proc_strings_count;
 }
 
-int resize(char*** strings, const char* const buffer, const int count) {
+int resize(char*** strings, const char* const buffer, const int count, int* curent_size) {
 
-	static int curent_size = STRINGS_SIZE;
-	int error_flag = FALSE;
-
-	if (count == curent_size || count == 0)
+	if (count == *curent_size || count == 0)
 	{
-		curent_size *= 2;
+		*curent_size *= 2;
+		if (strings == NULL) {
+			return FALSE;
+		}
 		char** p = (*strings);
-		(*strings) = (char**)realloc(p, sizeof(char*) * (curent_size));
+		(*strings) = (char**)realloc(p, sizeof(char*) * (*curent_size));
 		if ((*strings) == NULL) {
-			error_flag = TRUE;
-			return error_flag;
+			return FALSE;
 		}
 	}
 
 	(*strings)[count] = (char*)malloc(sizeof(char) * (strlen(buffer) + 1));
 	if ((*strings)[count] == NULL) {
-		error_flag = TRUE;
-		return error_flag;
+		return FALSE;
 	}
 
-	for (int j = 0; buffer[j] != '\0'; j++)	{
+	for (int j = 0; buffer[j] != '\0'; j++) {
 		(*strings)[count][j] = buffer[j];
 	}
 	(*strings)[count][strlen(buffer)] = '\0';
-	return 0;
+	return TRUE;
 }
 
 int string_lwr(char *new_string, const char* const source_string)
 {
 	int j = 0;
-	for (; source_string[j] != '\0'; j++)
+	for (; source_string[j] != '\0'; j++) {
 		if ((source_string[j] >= 'A') && (source_string[j] <= 'Z')) {
 			new_string[j] = (source_string[j] - 'A') + 'a';
 		}
 		else {
 			new_string[j] = source_string[j];
 		}
+	}
 	new_string[strlen(source_string)] = '\0';
-	return j;
+	if (strlen(new_string) == strlen(source_string)) {
+		return TRUE;
+	}
+	else {
+		return FALSE;
+	}
 }
 
 void memory_release(const int result_count, char** const result_strings, const int count, char** const strings)
 {
-	for (int i = 0; i < result_count; i++)	{
-		free(result_strings[i]);
+	for (int i = 0; i < result_count; i++) {
+		if (result_strings[i] != NULL) {
+			free(result_strings[i]);
+		}
 	}
-	free(result_strings);
-	for (int i = 0; i < count; i++)	{
-		free(strings[i]);
+	if (result_strings != NULL) {
+		free(result_strings);
 	}
-	free(strings);
+	for (int i = 0; i < count; i++) {
+		if (strings[i] != NULL) {
+			free(strings[i]);
+		}
+	}
+	if (result_strings != NULL) {
+		free(strings);
+	}
 	return;
 }
 
-int input(char*** strings, int* count)
+int input(char*** strings, int* count, FILE* format)
 {
-	int error_flag = FALSE;
-	for (char buffer[BUF_SIZE] = { "\0" }; error_flag != 1; (*count)++) {
-		if (fgets(buffer, BUF_SIZE, stdin) == NULL) {
+	int curent_size = STRINGS_SIZE;
+	int resize_ok = TRUE;
+	for (char buffer[BUF_SIZE] = { "\0" }; resize_ok;) {
+		if (fgets(buffer, BUF_SIZE, format) == NULL) {
 			break;
 		}
 		if (buffer[0] == '\n') {
 			break;
 		}
-		error_flag = resize(&(*strings), buffer, (*count));
+		resize_ok = resize(&(*strings), buffer, (*count), &curent_size);
+		if (resize_ok) {
+			(*count)++;
+		}
 	}
 
-	return error_flag;
+	return resize_ok;
 }
