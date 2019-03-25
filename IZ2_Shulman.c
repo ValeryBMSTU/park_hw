@@ -21,25 +21,17 @@
 #define OPERANDS_BUFFER_COUNT 64
 #define OPERANDS_BUFFER_SIZE 16
 #define RESIZE_RATIO 2
-#define COUNT_OF_OPER_TYPE 5
-
-#define POS_0 0
-#define POS_1 1
-#define POS_2 2
-#define POS_3 3 
-#define POS_4 4 
-#define POS_5 5
-#define POS_6 6
+#define COUNT_OF_OPER_TYPE 7
 #define POS_ERROR -1
 
 // Ввод исходной строки
-_Bool input(char** string);
+bool input(char** string);
 // Проход по строке в поисках операций, операндов или конца выражения
 int** set_calc(const char* const string, bool* error_flag);
 // Выбор действия после встречи операций, операндов или конца выражения
-_Bool operation(int* position, const int next_oper, int** operands, int* oper_count, int* string_pos);
+bool operation(int* position, const int next_oper, int** operands, int* oper_count, int* string_pos);
 // Произведение операции над операндами
-_Bool calc_operands(int* operand_1, int* operand_2, char operation);
+bool calc_operands(int* operand_1, int* operand_2, char operation);
 // Определение текущей операции на вершине стека
 int operation_choice(char operation);
 // Вывод результата
@@ -48,6 +40,12 @@ void print_result(int* result);
 void free_memory(int** result, char* string);
 // Добавление операнда в массив операндов
 bool add_operand(int** operands, int* i, const char* string, char** number, int* number_curent_size, int* oper_count);
+// Операция вычитания
+bool oper_sub(int* first_operand, int* second_operand);
+// Операция объединения
+bool oper_union(int* first_operand, int* second_operand);
+// Операция пересечения
+bool oper_mul(int* first_operand, int* second_operand);
 
 // Решение с помощью алгоритма Бауэра-Замельзона (Польская запись).
 int main()
@@ -73,7 +71,7 @@ int main()
 }
 
 // Ввод исходной строки
-_Bool input(char** string)
+bool input(char** string)
 {
 	char buffer[STRING_BUFFER_START_SIZE] = { '\0' };
 	if (!((buffer == fgets(buffer, STRING_BUFFER_START_SIZE, stdin)) && buffer[0] != '\n')) {
@@ -115,7 +113,6 @@ _Bool input(char** string)
 
 	return true;
 }
-
 // Проход по строке в поисках операций, операндов или конца выражения
 int** set_calc(const char* const string, bool* error_flag)
 {
@@ -142,45 +139,27 @@ int** set_calc(const char* const string, bool* error_flag)
 		int number_curent_size = NUMBER_BUFFER_START_SIZE;
 		int prev_oper_type = 0, next_oper_type = 0;
 		static int oper_count = 0;
-
+		enum oper_types { sub, unite, mul, bracket_open, bracket_close, space, qbracket_open, oper_error};
+		const char oper_mass[COUNT_OF_OPER_TYPE] = { '\\','U','^','(',')','\n','[' };
 		for (int i = 0; string[i] != '\0' && *error_flag != true; i++) {
 
-			switch (string[i]) {
-			case '\\':
-				next_oper_type = POS_0;
-				break;
-			case 'U':
-				next_oper_type = POS_1;
-				break;
-			case '^':
-				next_oper_type = POS_2;
-				break;
-			case '(':
-				next_oper_type = POS_3;
-				break;
-			case ')':
-				next_oper_type = POS_4;
-				break;
-			case '\n':
-				next_oper_type = POS_5;
-				break;
-			case '[':
-				if (add_operand(operands, &i, string, &number, &number_curent_size, &oper_count)) {
-					next_oper_type = POS_6;
+			for (int j = 0; j < COUNT_OF_OPER_TYPE; j++) {
+				if (oper_mass[j] == string[i]) {
+					next_oper_type = j;
 				}
-				else {
-					next_oper_type = POS_ERROR;
-				}
-				break;
-			default:
-				next_oper_type = POS_ERROR;
-				break;
 			}
-
-			if (next_oper_type == POS_ERROR) {
+			if (next_oper_type >= COUNT_OF_OPER_TYPE) {
 				*error_flag = true;
 			}
-			if (next_oper_type != POS_6) {
+			if(next_oper_type == qbracket_open){
+				if (add_operand(operands, &i, string, &number, &number_curent_size, &oper_count)) {
+					next_oper_type = qbracket_open;
+				}
+				else {
+					next_oper_type = oper_error;
+				}
+			}
+			if (next_oper_type != qbracket_open && next_oper_type != oper_error) {
 				if (!operation(&prev_oper_type, next_oper_type, operands, &oper_count, &i)) {
 					*error_flag = true;
 				}
@@ -190,9 +169,8 @@ int** set_calc(const char* const string, bool* error_flag)
 	}
 	return operands;
 }
-
 // Выбор действия после встречи операций, операндов или конца выражения
-_Bool operation(int* prev_oper_type, const int next_oper_type, int** operands, int* oper_count, int* string_pos)
+bool operation(int* prev_oper_type, const int next_oper_type, int** operands, int* oper_count, int* string_pos)
 {
 	static char oper_steck[OPER_STECK_START_SIZE] = { 'x' }; // Стек операций
 	static int steck_index = 0;
@@ -227,7 +205,7 @@ _Bool operation(int* prev_oper_type, const int next_oper_type, int** operands, i
 		steck_index--;
 		*prev_oper_type = operation_choice(oper_steck[steck_index]); // Установить позицию в соответствии с текущей операцией на вершине стека
 		break;
-	case '4':
+	case '4': // Достать операцию из стека и произвести её над операндами
 		if ((*oper_count) < 2) {
 			return false;
 		}
@@ -248,85 +226,47 @@ _Bool operation(int* prev_oper_type, const int next_oper_type, int** operands, i
 		return false;
 		break;
 	}
-	return true;
+	if ((*prev_oper_type) != POS_ERROR) {
+		return true;
+	}
+	else {
+		return false;
+	}
 }
-
 // Произведение операции над операндами
-_Bool calc_operands(int *first_operand, int *second_operand, char operation)
-{
-	int len_first_oper = first_operand[0];
-	int flag = 0;
-	int* tmp_operand = (int*)malloc(sizeof(int)*NUMBER_BUFFER_START_SIZE);
-	int new_len = 0;
+bool calc_operands(int *first_operand, int *second_operand, char operation) {
 	switch (operation)
 	{
 	case '\\':
-		for (int i = 1; i <= first_operand[0]; i++) {	// first_operand[0] - количество чисел в операнде
-			for (int j = 1; j <= second_operand[0]; j++) { // сами числа начинаются с индекса = 1
-				if (first_operand[i] == second_operand[j]) {
-					flag = 1;
-				}
-			}
-			if (flag == 0) {
-				tmp_operand[new_len + 1] = first_operand[i];
-				new_len++;
-			}
-			flag = 0;
-		}
-		first_operand[0] = new_len;
-		for (int i = 1; i <= new_len; i++) {
-			first_operand[i] = tmp_operand[i];
+		if (!oper_sub(first_operand, second_operand)) {
+			return false;
 		}
 		break;
 	case 'U':
-		for (int j = 1; j <= second_operand[0]; j++)
-		{
-			flag = 0;
-			for (int i = 1; i <= first_operand[0] && flag != 1; i++)
-			{
-				if (first_operand[i] == second_operand[j]) {
-					flag = 1;
-				}
-			}
-			if (flag != 1)
-			{
-				first_operand[len_first_oper + 1] = second_operand[j];
-				len_first_oper++;
-			}
+		if (!oper_union(first_operand, second_operand)) {
+			return false;
 		}
-		first_operand[0] = len_first_oper;
 		break;
 	case '^':
-		for (int i = 1; i <= first_operand[0]; i++) {
-			for (int j = 1; j <= second_operand[0]; j++) {
-				if (first_operand[i] == second_operand[j]) {
-					tmp_operand[new_len + 1] = first_operand[i];
-					new_len++;
-				}
-			}
-		}
-		first_operand[0] = new_len;
-		for (int i = 1; i <= new_len; i++) {
-			first_operand[i] = tmp_operand[i];
+		if (!oper_mul(first_operand, second_operand)) {
+			return false;
 		}
 		break;
 	}
-	free(tmp_operand);
 	return true;
 }
-
 // Определение текущей операции на вершине стека
 int operation_choice(char operation)
 {
 	const char mass[COUNT_OF_OPER_TYPE] = { 'x','\\','U','^','(' };
+	int result = -1;
 	for (int i = 0; i < COUNT_OF_OPER_TYPE; i++) {
 		if (mass[i] == operation) {
-			return i;
+			result = i;
 		}
 	}
-	return POS_ERROR;
+	return result;
 }
-
 // Вывод результата
 void print_result(int* result)
 {
@@ -342,7 +282,6 @@ void print_result(int* result)
 	}
 	printf("]");
 }
-
 // Освобождение памяти
 void free_memory(int** result, char* string) {
 
@@ -358,7 +297,7 @@ void free_memory(int** result, char* string) {
 		free(string);
 	}
 }
-
+// Добавление операндов в массив операндов
 bool add_operand(int** operands, int* i, const char* string, char** number, int* number_curent_size, int* oper_count) {
 	(*i)++;
 	int digit_count = 0, digit_index = 0;
@@ -391,4 +330,83 @@ bool add_operand(int** operands, int* i, const char* string, char** number, int*
 	else {
 		return true;
 	}
+}
+// Операция вычитания
+bool oper_sub(int* first_operand, int* second_operand) {
+	if (first_operand == NULL || second_operand == NULL) {
+		return false;
+	}
+	int* tmp_operand = NULL;
+	if ((tmp_operand = (int*)malloc(sizeof(int)*NUMBER_BUFFER_START_SIZE)) == NULL) {
+		return false;
+	}
+	int new_len = 0, flag = 0;
+	for (int i = 1; i <= first_operand[0]; i++) {	// first_operand[0] - количество чисел в операнде
+		for (int j = 1; (j <= second_operand[0]); j++) { // сами числа начинаются с индекса = 1
+			if (first_operand[i] == second_operand[j]) {
+				flag = 1;
+			}
+		}
+		if (flag == 0) {
+			tmp_operand[new_len + 1] = first_operand[i];
+			new_len++;
+		}
+		flag = 0;
+	}
+	first_operand[0] = new_len;
+	for (int i = 1; i <= new_len; i++) {
+		first_operand[i] = tmp_operand[i];
+	}
+	free(tmp_operand);
+	return true;
+}
+// Операция объединения
+bool oper_union(int* first_operand, int* second_operand) {
+	if (first_operand == NULL || second_operand == NULL) {
+		return false;
+	}
+	int len_first_oper = first_operand[0];
+	int flag = 0;
+	for (int j = 1; j <= second_operand[0]; j++)
+	{
+		flag = 0;
+		for (int i = 1; i <= first_operand[0] && flag != 1; i++)
+		{
+			if (first_operand[i] == second_operand[j]) {
+				flag = 1;
+			}
+		}
+		if (flag != 1)
+		{
+			first_operand[len_first_oper + 1] = second_operand[j];
+			len_first_oper++;
+		}
+	}
+	first_operand[0] = len_first_oper;
+	return true;
+}
+// Операция пересечения
+bool oper_mul(int* first_operand, int* second_operand) {
+	if (first_operand == NULL || second_operand == NULL) {
+		return false;
+	}
+	int* tmp_operand = NULL;
+	if ((tmp_operand = (int*)malloc(sizeof(int)*NUMBER_BUFFER_START_SIZE)) == NULL) {
+		return false;
+	}
+	int new_len = 0;
+	for (int i = 1; i <= first_operand[0]; i++) {
+		for (int j = 1; j <= second_operand[0]; j++) {
+			if (first_operand[i] == second_operand[j]) {
+				tmp_operand[new_len + 1] = first_operand[i];
+				new_len++;
+			}
+		}
+	}
+	first_operand[0] = new_len;
+	for (int i = 1; i <= new_len; i++) {
+		first_operand[i] = tmp_operand[i];
+	}
+	free(tmp_operand);
+	return true;
 }
